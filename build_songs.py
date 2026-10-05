@@ -2,8 +2,10 @@
 
 Run: uv run build_songs.py
 Every artist in ARTISTS gets their whole iTunes discography (one entry per song,
-studio version preferred). TRACKS is a safety net: songs that must be present even
-if the crawl missed them. Responses are cached in itunes_cache.json, so
+studio version preferred), written to songs_master.json. The game only ships
+songs.json: each artist's PER_ARTIST most-played songs, every song in TRACKS, plus
+ids listed in include.txt and minus ids listed in exclude.txt (one id per line,
+"#" starts a comment). Find ids by searching songs_master.json for the title. Responses are cached in itunes_cache.json, so
 re-runs after editing the lists only fetch what is new.
 """
 import json
@@ -18,6 +20,8 @@ from difflib import SequenceMatcher
 
 CACHE = pathlib.Path("itunes_cache.json")
 YT_MATCHES = pathlib.Path("youtube_matches.json")
+MASTER = pathlib.Path("songs_master.json")  # everything found; stays on this machine
+PER_ARTIST = 30  # how many of each artist's songs go into the published songs.json, most played first
 KEEP = ("trackId", "trackName", "artistName", "artistId", "previewUrl", "artworkUrl100", "trackViewUrl", "trackTimeMillis")
 FIELDS = KEEP + ("collectionName", "releaseDate", "kind")
 
@@ -150,6 +154,20 @@ ARTISTS = [
     ("سانت ليفانت", "Saint Levant", "rap"),
 ]
 
+# Extra spellings Apple files an artist under, when they are too different from the name above to match by themselves.
+ALIASES = {
+    "أم كلثوم": ["Oum Kalsoum", "Om Kolthoum", "Oum Kalthoum", "Om Kalthoum", "Omme Kolsoum"],
+    "فيروز": ["Fairouz"],
+    "فريد الأطرش": ["Farid El Atrache"],
+    "عبد الحليم حافظ": ["Abd El Halim Hafez"],
+    "محمد عبد الوهاب": ["Mohamed Abdel Wahab"],
+    "سيد درويش": ["Sayed Darwesh", "Sayed Darweesh"],
+}
+
+# Parked: Umm Kulthum essentials that Apple only has as covers (checked 2026-10-05). Her own recordings are on
+# YouTube Music, but the game can't cut exact clips from YouTube, so they are left out until that is decided:
+#   Fakkarouni, Hayart Albi Maak, Haseebak Lel Zaman, Zalamna El Hob, Habibi Yesaed Awqato
+
 # Specific songs: category -> [(title, main artist)]
 TRACKS = {
     "classic": [
@@ -267,7 +285,10 @@ TRACKS = {
 }
 
 # Never wanted: someone else's take on the song.
-DROP = re.compile(r"remix|rework|cover|karaoke|\bmix\b|medley|mashup|ريمكس|كاريوكي|توزيع|ميكس", re.I)
+DROP = re.compile(r"remix|rework|cover|karaoke|\bmix\b|mixed by|medley|mashup|tribute|chill|lounge|lo-?fi|ريمكس|كاريوكي|توزيع|ميكس", re.I)
+# Modern acts credited alongside a classic artist on what are really remixes. Duets between classic artists are fine,
+# so this is a list of names rather than a rule; add to it when another one turns up.
+BAD_CREDIT = re.compile(r"blu rapture|sanwal khan|oka el-afret|ammar godza|ata animation", re.I)
 # Alternate takes: kept only when the artist has no plain version of the same title.
 ALT = re.compile(r"live|instrumental|version|acoustic|intro|outro|\bpt\b|part|حفل|لايف|موسيقى|مقطع", re.I)
 
@@ -331,10 +352,11 @@ def artist_ids(ar, latin):
     top = Counter(r["artistId"] for r in (by_ar if len(by_ar) >= 5 else by_ar + search(latin))).most_common(1)
     if top:
         ids.add(top[0][0])
-    for term in (ar, latin):
+    names = [latin, *ALIASES.get(ar, [])]
+    for term in (ar, *names):
         for x in fetch("search", query(term, entity="musicArtist", limit=5), ("artistId", "artistName")):
             name = norm(x["artistName"])
-            if name == norm(ar) or SequenceMatcher(None, norm(latin), name).ratio() >= 0.8:
+            if name == norm(ar) or any(SequenceMatcher(None, norm(n), name).ratio() >= 0.8 for n in names):
                 ids.add(x["artistId"])
     return ids
 
@@ -344,7 +366,8 @@ def discography(ids, ar, latin):
     out, capped = {}, False
     for aid in ids:
         got = fetch("lookup", urllib.parse.urlencode({"id": aid, "entity": "song", "limit": 200, "country": "eg"}), FIELDS)
-        out.update((r["trackId"], r) for r in got)
+        # a lookup also returns other acts' tracks that sample or "feature" this artist: keep only the artist's own
+        out.update((r["trackId"], r) for r in got if r["artistId"] in ids)
         capped |= len(got) >= 200
     if capped:
         for term in (ar, latin):
@@ -362,7 +385,8 @@ def select(tracks):
     best = {}
     for r in tracks:
         title = r["trackName"] or ""
-        if r.get("kind") != "song" or not r.get("previewUrl") or (r.get("trackTimeMillis") or 0) < 60_000 or DROP.search(title):
+        if (r.get("kind") != "song" or not r.get("previewUrl") or (r.get("trackTimeMillis") or 0) < 60_000
+                or DROP.search(title) or DROP.search(r.get("collectionName") or "") or BAD_CREDIT.search(r.get("artistName") or "")):
             continue
         key, alt = title_key(title), bool(ALT.search(title))
         if key and (key not in best or (best[key][0] and not alt)):
@@ -370,26 +394,56 @@ def select(tracks):
     return [r for _, r in best.values()]
 
 
-def find_track(title, artist, known):
-    """First search hit that plausibly is this song, preferring studio versions."""
+def find_track(title, artist, ids_of):
+    """The playlist song on iTunes, by that artist only (a matching title by someone else is a cover or a sample)."""
+    close = [ids for name, ids in ids_of.items() if SequenceMatcher(None, norm(artist), norm(name)).ratio() >= 0.8]
+    own = set().union(*close) if close else None
     ok = [
         r for r in search(f"{title} {artist}", attribute=None, limit=10)
-        if not artist.isascii() or r["artistId"] in known
-        or SequenceMatcher(None, norm(artist), norm(r["artistName"])).ratio() >= 0.6
+        if (r["artistId"] in own if own is not None
+            else norm(title) in norm(r["trackName"]) if not artist.isascii()
+            else SequenceMatcher(None, norm(artist), norm(r["artistName"])).ratio() >= 0.8)
     ]
     ok.sort(key=lambda r: bool(DROP.search(r["trackName"]) or ALT.search(r["trackName"])))
     return ok[0] if ok else None
 
 
+def id_list(name):
+    p = pathlib.Path(name)
+    return {int(m.group()) for line in (p.read_text().splitlines() if p.exists() else []) if (m := re.match(r"\d+", line.strip()))}
+
+
+def publish(songs):
+    """The shipped subset: per artist, the PER_ARTIST most-played songs plus playlist songs and include.txt, minus exclude.txt."""
+    include, exclude, by_artist = id_list("include.txt"), id_list("exclude.txt"), {}
+    for s in songs:
+        by_artist.setdefault(s["ar"] or s["a"], []).append(s)
+    out = []
+    for group in by_artist.values():
+        ranked = sorted(group, key=lambda s: -s.get("n", 0))  # stable sort: iTunes order breaks ties
+        # two spellings of one song match the same YouTube video: publish only the first
+        seen = set()
+        ranked = [s for s in ranked if not (s.get("yt") in seen or seen.add(s.get("yt") or s["id"]))]
+        out += [
+            {k: v for k, v in s.items() if k not in ("must", "n")}
+            for i, s in enumerate(ranked)
+            if (i < PER_ARTIST or s.get("must") or s["id"] in include) and s["id"] not in exclude
+        ]
+    return out
+
+
 def main():
-    songs, ids, titles, known = [], set(), set(), {}  # known: artistId -> Arabic name
+    songs, ids, titles, known, index, ids_of, lengths = [], set(), set(), {}, {}, {}, {}  # known: artistId -> Arabic name; ids_of: Latin name -> artist ids
 
     def add(r, ar, cat):
         key = (title_key(r["trackName"]), r["artistId"])
-        if r["trackId"] in ids or key in titles:
+        same = (ar or r["artistName"], r.get("trackTimeMillis"))  # same artist, same length to the millisecond: same recording
+        if r["trackId"] in ids or key in titles or same in lengths:
+            index.setdefault(key, lengths.get(same, 0))
             return False
         ids.add(r["trackId"])
         titles.add(key)
+        index[key] = lengths[same] = len(songs)
         songs.append({
             "id": r["trackId"], "t": r["trackName"], "a": r["artistName"], "aid": r["artistId"], "ar": ar,
             "c": cat, "p": r["previewUrl"], "img": r["artworkUrl100"], "u": r["trackViewUrl"],
@@ -401,17 +455,21 @@ def main():
     for ar, latin, cat in ARTISTS:
         aids = artist_ids(ar, latin)
         known.update((a, ar) for a in aids)
+        ids_of[latin] = aids
+        ids_of.update((alias, aids) for alias in ALIASES.get(ar, []))
         n = sum(add(r, ar, cat) for r in select(discography(aids, ar, latin)))
         print(f"{n:4d}  {latin}", file=sys.stderr, flush=True)
 
     rescued, missing = [], []
     for cat, tracks in TRACKS.items():
         for title, artist in tracks:
-            r = find_track(title, artist, known)
+            r = find_track(title, artist, ids_of)
             if not r:
                 missing.append(f"{title} - {artist}")
-            elif add(r, known.get(r["artistId"], ""), cat):
-                rescued.append(f"{title} - {artist}")
+            else:
+                if add(r, known.get(r["artistId"], ""), cat):
+                    rescued.append(f"{title} - {artist}")
+                songs[index[(title_key(r["trackName"]), r["artistId"])]]["must"] = True
 
     need = [s for s in songs if not s["y"]]
     extra = {}
@@ -422,17 +480,20 @@ def main():
         s["al"] = e.get("collectionName") or ""
         s["y"] = int((e.get("releaseDate") or "0")[:4])
 
-    # official YouTube audio found by match_youtube.py: the full song for the end-of-round player
+    # official YouTube audio found by match_youtube.py: the full song for the end-of-round player, and its play count
     yt = json.loads(YT_MATCHES.read_text()) if YT_MATCHES.exists() else {}
     for s in songs:
-        if yt.get(str(s["id"])):
-            s["yt"] = yt[str(s["id"])]
+        m = yt.get(str(s["id"]))
+        if m:
+            s["yt"], s["n"] = m["v"], m.get("n", 0)
 
     save_cache()
     assert songs and len(ids) == len(songs)
+    MASTER.write_text(json.dumps(songs, ensure_ascii=False, indent=0), encoding="utf-8")
+    published = publish(songs)
     with open("songs.json", "w", encoding="utf-8") as f:
-        json.dump(songs, f, ensure_ascii=False, indent=0)
-    print(f"\n{len(songs)} songs -> songs.json", file=sys.stderr)
+        json.dump(published, f, ensure_ascii=False, indent=0)
+    print(f"\n{len(songs)} songs -> {MASTER}, {len(published)} of them published -> songs.json", file=sys.stderr)
     print(f"{len(rescued)} playlist songs the artist crawl missed, added individually", file=sys.stderr)
     print(f"{len(missing)} playlist songs not found on iTunes:\n  " + "\n  ".join(missing), file=sys.stderr)
 

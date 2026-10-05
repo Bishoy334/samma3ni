@@ -3,3 +3,6 @@ songs.backup.json
 __pycache__/
 build.log
 .playwright-mcp/
+songs_master.json
+youtube_matches.json
+match.log

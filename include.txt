@@ -1,0 +1,23 @@
+# Songs that are always published, whatever their play count. One iTunes track id per line.
+
+# Umm Kulthum essentials
+6789325706  # Alf Leila We Leila (Alf leila wa leila, 58 min)
+6818619888  # Enta Omri (Anta Oumri Remasterisé, 58 min)
+1848903189  # Amal Hayati (امل حياتي, 18 min)
+1809347384  # Ya Mesaharny (Ya Messaharni, 55 min)
+1848897377  # Daret El Ayam (دارت الأيام, 39 min)
+1848908684  # Leilet Hob (ليلة حب, 31 min)
+1848903002  # Baeed Annak (بعيد عنك, 12 min)
+1848903556  # Fat El Maad (فات الميعاد, 37 min)
+1848903436  # Ghaneely Shway Shway (غنيلي شوي شوي, 5 min)
+6789325707  # Al Atlal (Al Atlal, 48 min)
+623239105  # Seret El Hob (Serat El Hob, 57 min)
+1848900536  # Hob Eih (حب إيه, 8 min)
+1848903551  # Ansak (انساك, 39 min)
+580576453  # Lessa Faker (Lesa Faker, 45 min)
+580601546  # Aghadan Alqak (Aghadan Alkak, 40 min)
+580569326  # Hazihi Laylati (Hazihi Leilati, 39 min)
+1848900480  # Kan Lak Ma'aya (كان لك معايا, 10 min)
+580602449  # Betfakkar Fi Min (Betfakkar Fi Min, 42 min)
+723833882  # Howa Sahih (Sahih Khessamak, 6 min)
+6789325709  # Lessabr Hodoud (Lessabr Haddoud, 38 min)
