@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samma3ni | Name the Egyptian song from a split second</title>
+<meta name="description" content="Hear a fraction of a second and name the song. From Umm Kulthum and Abdel Halim to mahraganat and rap.">
+<meta name="theme-color" content="#2A0F3A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#2A0F3A; --deep:#1E0A2B; --surface:#3A1A4E; --faint:#3A1A4E66; --line:#5B3672;
+  --cream:#FFF1D6; --muted:#C8A8D8; --mango:#FFB321; --pink:#FF4D7E; --mint:#3DDBA5;
+  --display:'Lalezar',system-ui,sans-serif; --body:'Readex Pro',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--cream);font:400 16px/1.5 var(--body);min-height:100dvh;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:none}
+
+header{position:relative;text-align:center;padding:14px 20px 0}
+h1{font:400 50px/1.1 var(--display);color:var(--mango);text-shadow:3px 3px 0 var(--pink)}
+h1 span{font-size:.55em;color:var(--cream);text-shadow:none;margin-inline-start:6px}
+.tools{position:absolute;top:18px;right:24px;display:flex;gap:8px}
+.tools button{width:44px;height:44px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-weight:600}
+.tools [aria-pressed=true]{background:var(--mango);color:var(--deep)}
+
+main{max-width:860px;margin:0 auto;padding:10px 16px 40px}
+.cats{display:grid;grid-template-columns:repeat(5,1fr);max-width:560px;margin:0 auto;background:var(--surface);border-radius:12px;padding:4px}
+.cats button{height:36px;border-radius:9px;color:var(--muted);font-size:14px;white-space:nowrap}
+.cats [aria-pressed=true]{background:var(--cream);color:var(--deep);font-weight:600}
+
+.stage{position:relative;display:grid;place-items:center;padding:18px 0 16px}
+.disc{position:relative;width:min(52vw,200px);aspect-ratio:1;border-radius:50%;transition:scale .15s}
+.disc:active{scale:.97}
+.platter{position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle,#120817 0 1.5px,#221229 1.5px 3px);box-shadow:0 14px 40px #0009,inset 0 0 0 2px #000;animation:spin 1.8s linear infinite paused}
+.platter::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 20deg,transparent 0 12%,#fff3 18%,transparent 24% 62%,#fff2 68%,transparent 74%)}
+.playing .platter{animation-play-state:running}
+.label{position:absolute;inset:31%;border-radius:50%;background:var(--mango);border:3px solid var(--pink);overflow:hidden;transition:inset .6s cubic-bezier(.2,.9,.3,1.2)}
+.label img{width:100%;height:100%;object-fit:cover;opacity:0;filter:blur(9px);scale:1.3;transition:opacity .4s,filter .6s,scale .6s}
+.done .label{inset:16%}
+.done .label img{opacity:1;filter:none;scale:1}
+.icon{position:absolute;inset:39%;border-radius:50%;display:grid;place-items:center;background:var(--cream);color:var(--bg);box-shadow:0 2px 10px #0008}
+.icon svg{width:46%;height:46%}
+.icon .stop,.playing .icon .go{display:none}
+.playing .icon .stop{display:block}
+.disc:disabled{cursor:default}
+.disc:disabled .icon{animation:pulse .8s ease-in-out infinite alternate}
+
+#rows{list-style:none;padding:0;display:grid;gap:6px}
+#rows li{display:flex;align-items:center;justify-content:center;gap:10px;height:42px;padding:0 14px;border-radius:10px;background:var(--faint);font-size:15px}
+#rows .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+#rows .by{font-weight:400;opacity:.75}
+#rows .tag{flex:none;font-size:12px;color:var(--mango)}
+#rows .cur{background:var(--surface)}
+#rows .skip{color:var(--muted)}
+#rows .bad{background:#FF4D7E2e}
+#rows .near{background:#FFB3212e}
+#rows .ok{background:var(--mint);color:var(--deep)}
+#rows .shake{animation:shake .35s}
+
+.cap{position:relative;height:38px;margin-top:12px;font-size:13px;color:var(--muted);white-space:nowrap}
+#status{position:absolute;top:0;line-height:24px}
+#answer{position:absolute;top:0;left:0;max-width:72%;line-height:24px;overflow:hidden;text-overflow:ellipsis}
+#mark{position:absolute;bottom:3px;translate:-50% 0;border:6px solid transparent;border-top:8px solid var(--cream);border-bottom:0}
+.cap b{color:var(--cream);font-weight:600;font-size:16px}
+.cap p button{color:var(--mango);text-decoration:underline}
+.bar{position:relative;display:grid;height:12px;margin-top:4px;border-radius:6px;overflow:hidden}
+.seg{background:var(--surface)}
+.seg+.seg{border-inline-start:2px solid var(--bg)}
+.seg.on{background:var(--line)}
+.fill{position:absolute;z-index:1;inset-block:0;inset-inline-start:0;width:0;background:var(--mango)}
+
+#hintBtn{position:absolute;z-index:2;right:0;bottom:10px;display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:99px;background:var(--surface);color:var(--muted);font-size:13px}
+#hintBtn svg,dialog h2 svg{width:1.05em;height:1.05em;flex:none}
+dialog h2 svg{vertical-align:-.12em;margin-inline-end:6px}
+#hintBtn.lit{background:var(--mango);color:var(--deep);font-weight:600;animation:glow 1.2s ease-in-out 3}
+#cards{position:absolute;inset:0;pointer-events:none}
+.hc{pointer-events:auto;position:absolute;top:50%;width:176px;padding:10px 12px;border-radius:8px;background:var(--cream);color:var(--deep);font-size:13px;line-height:1.3;text-align:center;box-shadow:0 8px 24px #0008;animation:drop .45s cubic-bezier(.2,.9,.3,1.3) backwards}
+.hc.l{right:calc(50% + 118px);translate:0 -50%;rotate:-7deg}
+.hc.r{left:calc(50% + 118px);translate:0 -50%;rotate:6deg}
+.hc.still{animation:none}
+.hc small{display:block;font-size:11px;font-weight:600;color:#8A2E55}
+.hc span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;white-space:pre-line}
+.hc.pic{width:120px;padding:6px}
+.hc .ph{display:block;aspect-ratio:1;border-radius:4px;overflow:hidden}
+.hc img{display:block;width:100%;height:100%;object-fit:cover;scale:1.25}
+.shown{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin:6px 0 18px}
+.shown .hc{position:static;rotate:-2deg;animation:none;width:170px}
+.shown .hc:nth-child(2){rotate:2deg}
+.shown .hc span{display:block}
+.opts{display:grid;gap:8px}
+.opt{text-align:start;padding:10px 14px;border-radius:12px;background:var(--surface)}
+.opt:hover{background:var(--line)}
+.opt b{display:block;font-weight:600}
+.opt small{color:var(--muted)}
+
+.controls{display:flex;gap:8px;margin-top:12px}
+.search{flex:1;position:relative}
+.search input{width:100%;height:48px;border-radius:12px;border:1.5px solid transparent;background:var(--surface);color:var(--cream);font:inherit;padding:0 14px}
+.search input::placeholder{color:var(--muted)}
+.search input:focus{border-color:var(--mango);outline:none}
+#list{position:absolute;z-index:5;bottom:54px;inset-inline:0;list-style:none;padding:6px;background:var(--deep);border:1px solid var(--line);border-radius:12px;max-height:330px;overflow:auto;box-shadow:0 -12px 40px #000a}
+#list li{display:flex;gap:10px;align-items:center;padding:6px 8px;border-radius:9px;cursor:pointer}
+#list li.act,#list li:hover{background:var(--surface)}
+#list li.none{cursor:default;color:var(--muted);font-size:14px;background:none}
+#list img{width:40px;height:40px;border-radius:6px;flex:none;background:var(--surface)}
+#list b{display:block;font-weight:500;line-height:1.3}
+#list small{color:var(--muted)}
+.btn{flex:1;height:48px;padding:0 16px;border-radius:12px;font-weight:600;display:grid;place-items:center;background:var(--surface);color:var(--cream);text-decoration:none;white-space:nowrap}
+.btn.primary{background:var(--mango);color:var(--deep)}
+#skip{flex:none}
+[lang=ar]{opacity:.75}
+h1 [lang=ar]{opacity:1}
+
+dialog{background:var(--bg);color:var(--cream);border:1px solid var(--line);border-radius:18px;padding:0;width:min(92vw,460px);max-height:94dvh;margin:auto;overflow:auto}
+dialog::backdrop{background:#000a}
+.pad{padding:20px}
+dialog h2{font:400 30px/1.2 var(--display);color:var(--mango);margin-bottom:10px}
+dialog ul{padding-inline-start:18px}
+dialog li{margin-bottom:8px}
+.x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;background:#0003;font-size:20px;line-height:1}
+.band{font:400 30px/1 var(--display);text-align:center;padding:18px 44px 14px;background:var(--mint);color:var(--deep)}
+.lose .band{background:var(--pink)}
+.was{text-align:center;margin-bottom:12px}
+.was small{color:var(--muted)}
+.was h3{font-size:20px;font-weight:600;line-height:1.3}
+.tabs{display:grid;grid-template-columns:1fr 1fr;width:220px;margin:0 auto 12px;background:var(--surface);border-radius:99px;padding:3px}
+.tabs button{height:28px;border-radius:99px;font-size:13px;color:var(--muted)}
+.tabs [aria-pressed=true]{background:var(--cream);color:var(--deep);font-weight:600}
+.player{display:flex;align-items:center;gap:10px;height:50px;margin-top:16px;padding:0 6px;border-radius:99px;background:var(--cream);color:var(--deep)}
+.pp{flex:none;width:38px;height:38px;border-radius:50%;background:var(--pink);color:var(--cream);display:grid;place-items:center}
+.pp svg{width:16px;height:16px}
+.pp .stop,.playing .pp .go{display:none}
+.playing .pp .stop{display:block}
+.player input{flex:1;min-width:0;height:28px;accent-color:var(--pink)}
+.player span{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.player a{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--deep)}
+.player a svg{width:20px;height:20px}
+.player a:hover{background:#0001}
+.nums{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;text-align:center;margin-bottom:14px;padding:10px 0;border-radius:12px;background:var(--faint)}
+.nums b{display:block;font:400 32px/1.1 var(--display)}
+.nums span{font-size:12px;color:var(--muted)}
+.dist{display:grid;gap:5px;font-size:13px}
+.dist div{display:flex;align-items:center;gap:8px}
+.dist span{min-width:12px;color:var(--muted)}
+.dist i{display:block;height:20px;min-width:22px;border-radius:5px;background:var(--line);font-style:normal;text-align:center;padding:0 6px}
+.dist .me i{background:var(--mint);color:var(--deep);font-weight:600}
+.dist .me.lost i{background:var(--pink)}
+.pad .controls{margin-top:18px}
+.note{color:var(--muted);font-size:13px;text-align:center;margin-top:10px}
+
+#ythost{position:fixed;left:0;bottom:0;width:200px;height:113px;opacity:0;pointer-events:none;z-index:-1}
+#toast{position:fixed;z-index:9;bottom:24px;left:50%;translate:-50%;background:var(--cream);color:var(--deep);padding:8px 18px;border-radius:99px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+#confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+#confetti i{position:absolute;top:-16px;left:var(--x);width:8px;height:14px;animation:fall var(--d) ease-in forwards}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{to{opacity:.35}}
+@keyframes drop{from{opacity:0;scale:1.5}}
+@keyframes glow{50%{box-shadow:0 0 0 6px #FFB32144}}
+@keyframes shake{25%{translate:6px}50%{translate:-6px}75%{translate:3px}}
+@keyframes fall{to{transform:translateY(106vh) rotate(var(--r))}}
+@media (max-width:760px){
+  header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0}
+  h1{font-size:32px;text-shadow:2px 2px 0 var(--pink)}
+  .tools{position:static;gap:6px}
+  .tools button{width:40px;height:40px}
+  .cats button{font-size:13px}
+  #rows li{height:40px;font-size:14px}
+  .hc{width:96px;padding:6px;font-size:11px}
+  .hc small{font-size:10px}
+  .hc.pic{width:84px;padding:5px}
+  .hc.l{right:calc(50% + 74px)}
+  .hc.r{left:calc(50% + 74px)}
+}
+@media (prefers-reduced-motion:reduce){.platter,#rows .shake{animation:none}*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Samma3ni <span lang="ar">سمّعني</span></h1>
+  <div class="tools">
+    <button id="freeBtn" aria-label="Free play" title="Free play" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 8.5c-2.2 0-3.8 1.6-3.8 3.5s1.6 3.5 3.8 3.5c4 0 6-7 10-7 2.2 0 3.8 1.6 3.8 3.5s-1.6 3.5-3.8 3.5c-4 0-6-7-10-7z"/></svg></button>
+    <button id="statsBtn" aria-label="Stats" title="Stats"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="1" y="9" width="4" height="8" rx="1"/><rect x="7" y="1" width="4" height="16" rx="1"/><rect x="13" y="5" width="4" height="12" rx="1"/></svg></button>
+    <button id="helpBtn" aria-label="How to play" title="How to play">?</button>
+  </div>
+</header>
+
+<main>
+  <nav class="cats" id="cats" aria-label="Genre"></nav>
+
+  <div class="stage">
+    <div id="cards"></div>
+    <button id="hintBtn" hidden></button>
+    <button class="disc" id="disc" aria-label="Play clip" disabled>
+      <span class="platter"><span class="label"><img id="cover" alt=""></span></span>
+      <span class="icon">
+        <svg class="go" viewBox="0 0 20 20" fill="currentColor"><path d="M5 2.5v15l13-7.5z"/></svg>
+        <svg class="stop" viewBox="0 0 20 20" fill="currentColor"><rect x="3" y="3" width="14" height="14" rx="2"/></svg>
+      </span>
+    </button>
+  </div>
+
+  <ol id="rows" aria-label="Your guesses"></ol>
+
+  <div class="cap"><p id="status" aria-live="polite"></p><span id="answer"></span><i id="mark" hidden></i></div>
+  <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
+
+  <div class="controls" id="controls">
+    <div class="search">
+      <input id="q" type="text" placeholder="Search a song or artist" autocomplete="off" enterkeyhint="search" aria-label="Guess the song" aria-controls="list">
+      <ul id="list" role="listbox" hidden></ul>
+    </div>
+    <button id="skip" class="btn">Skip</button>
+  </div>
+  <div class="controls" id="after" hidden></div>
+</main>
+
+<dialog id="help">
+  <div class="pad">
+    <h2>How to play</h2>
+    <ul>
+      <li>Tap the record to hear 0.1 seconds of a song.</li>
+      <li>Type the song or artist, in English, Franco or Arabic, and pick it from the list.</li>
+      <li>Every wrong guess or skip unlocks a longer clip: 0.5, then 1, 3, 7 and 15 seconds.</li>
+      <li>After 2 misses you pick one of three small hints. After 4 you pick one of three bigger ones. They land as cards next to the record.</li>
+      <li>Each genre has one daily song, the same for everyone. The loop button at the top switches to free play, which never ends.</li>
+    </ul>
+    <form method="dialog" class="controls"><button class="btn primary">Yalla</button></form>
+  </div>
+</dialog>
+
+<dialog id="hint">
+  <form method="dialog"><button class="x" aria-label="Close">×</button></form>
+  <div class="pad" id="hintBody"></div>
+</dialog>
+
+<dialog id="results">
+  <form method="dialog"><button class="x" aria-label="Close">×</button></form>
+  <div id="resultsBody"></div>
+</dialog>
+
+<div id="ythost" aria-hidden="true"></div>
+<div id="confetti"></div>
+<div id="toast" role="status"></div>
+
+<script>
+const CLIPS = [0.1, 0.5, 1, 3, 7, 15];
+const CATS = {all: 'All', classic: 'Classics', pop: 'Pop', shaabi: 'Shaabi', rap: 'Rap'};
+const GENRE = {classic: 'Classics', pop: 'Pop', shaabi: 'Shaabi & mahraganat', rap: 'Rap'};
+const BULB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21.5h4M12 2.5a6.5 6.5 0 0 0-4 11.6c.7.6 1 1.3 1 2.1V17h6v-.8c0-.8.3-1.5 1-2.1a6.5 6.5 0 0 0-4-11.6z"/></svg>';
+const APPLE_LOGO = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
+const YT_LOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#f00" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8z"/><path fill="#fff" d="M9.6 15.6V8.4l6.3 3.6z"/></svg>';
+const TIER_AT = {1: 2, 2: 4}; // misses before each hint tier unlocks
+const fmtLen = d => `${d / 60 | 0}:${String(d % 60).padStart(2, '0')}`;
+const cleanTitle = s => s.t.replace(/\(.*?\)|\[.*?\]/g, '').trim();
+const others = s => songs.filter(o => o.aid === s.aid && o.id !== s.id).slice(0, 3);
+// tier 1 = nudges, tier 2 = near giveaways. `ok` says whether the song has the data; `img` is a cover blur in px.
+const HINTS = {
+  genre: {tier: 1, name: 'Genre', tease: 'What kind of song it is', ok: () => cat === 'all', text: s => GENRE[s.c]},
+  year: {tier: 1, name: 'Release year', tease: 'When it came out', ok: s => s.y && s.c !== 'classic', text: s => `Released in ${s.y}`},
+  length: {tier: 1, name: 'Song length', tease: 'How long the full song runs', ok: s => s.d, text: s => `${fmtLen(s.d)} long`},
+  words: {tier: 1, name: 'Title length', tease: 'How many words are in the title', text: s => { const n = cleanTitle(s).split(/\s+/).length; return `${n} ${n === 1 ? 'word' : 'words'} in the title` }},
+  collab: {tier: 1, name: 'Solo or collab', tease: 'Whether more than one act is on it', text: s => /&|,|feat/i.test(s.a + s.t) ? 'A collaboration' : 'One act, no features'},
+  initial: {tier: 1, name: 'Artist initial', tease: 'The first letter of the artist\'s name', text: s => `Artist starts with ${s.a[0].toUpperCase()}`},
+  blur: {tier: 1, name: 'Blurry cover', tease: 'The cover art, heavily blurred', img: 12},
+  artist: {tier: 2, name: 'Artist', tease: 'Who performs it', text: s => s.a},
+  others: {tier: 2, name: 'Same artist', tease: 'Other songs by this artist', ok: s => others(s).length > 1, text: s => others(s).map(cleanTitle).join('\n')},
+  album: {tier: 2, name: 'Album', tease: 'The album it is on', ok: s => s.al && !norm(s.al).includes(norm(cleanTitle(s))), text: s => s.al},
+  letters: {tier: 2, name: 'Title letters', tease: 'The first letter of each word in the title', text: s => cleanTitle(s).split(/\s+/).map(w => w[0].toUpperCase() + '_'.repeat(Math.min(w.length - 1, 8))).join('  ')},
+  cover: {tier: 2, name: 'Clearer cover', tease: 'The cover art, lightly blurred', img: 3},
+};
+const WIN = ['Golden ears!', 'Ya ostaz!', 'Gamed awy', 'Nicely done', 'Got there', 'By a whisker'];
+const DAY = Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5);
+const GAME_NO = DAY - Date.UTC(2026, 9, 5) / 864e5 + 1;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const artist = s => esc(s.a) + (s.ar ? ` <span lang="ar">${esc(s.ar)}</span>` : '');
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('samma3ni:' + k)) ?? d } catch { return d } },
+  set(k, v) { try { localStorage.setItem('samma3ni:' + k, JSON.stringify(v)) } catch {} },
+};
+
+// Folds Arabic spelling variants and Franco digits so "انا", "أنا", "wada3" and "wadaa" all match.
+const FRANCO = {2: 'a', 3: 'a', 5: 'kh', 7: 'h', 8: 'gh'};
+const norm = s => s.toLowerCase().normalize('NFKD').replace(/\p{M}|ـ/gu, '')
+  .replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+  .replace(/(?<=[a-z])[23578]|[23578](?=[a-z])/g, d => FRANCO[d])
+  .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+let songs = [], byId = new Map(), song, guesses = [], done = null;
+let mode = 'daily', cat = store.get('cat');
+if (!CATS[cat]) cat = 'all';
+let ctx, buffer = null, startAt = 0, src = null, raf = 0, loadErr = false, pos = 0;
+let matches = [], active = 0;
+let hintOpts = {1: [], 2: []}, picked = [], autoShown = 0;
+let ytApi, yt = null, ytReady = false, ytFailed = 0;
+
+if (navigator.audioSession) navigator.audioSession.type = 'playback'; // iOS: play even with the silent switch on
+
+// Classics that should come up a bit more often than their peers (everyone else weighs 1).
+const BOOST = {'عبد الحليم حافظ': 2.5, 'أم كلثوم': 2.2, 'وردة': 1.9, 'فيروز': 1.6};
+// Seeded generator (mulberry32) so the daily song is the same for everyone.
+function rng(seed) {
+  return () => {
+    seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// Genre first, then artist, then song: otherwise artists with huge discographies would crowd out everyone else.
+function pickSong(rand) {
+  const genres = [...new Set(songs.map(s => s.c))];
+  const genre = cat === 'all' ? genres[rand() * genres.length | 0] : cat, by = {};
+  for (const s of songs) if (s.c === genre) (by[s.ar || s.a] ??= []).push(s);
+  const names = Object.keys(by);
+  if (!names.length) return songs[rand() * songs.length | 0];
+  let r = rand() * names.reduce((sum, n) => sum + (BOOST[n] || 1), 0);
+  const name = names.find(n => (r -= BOOST[n] || 1) < 0) || names.at(-1);
+  return by[name][rand() * by[name].length | 0];
+}
+
+function startRound() {
+  stop();
+  if (mode === 'daily') {
+    song = pickSong(rng(DAY * 97 + Object.keys(CATS).indexOf(cat)));
+    const saved = Object(store.get('daily:' + cat));
+    const same = saved.day === DAY && saved.id === song.id;
+    guesses = same && Array.isArray(saved.guesses) ? saved.guesses : [];
+    done = same ? saved.done : null;
+    picked = same && Array.isArray(saved.picked) ? saved.picked.filter(k => HINTS[k]) : [];
+    hintOpts = same && saved.opts ? {1: saved.opts[1].filter(hintOk), 2: saved.opts[2].filter(hintOk)} : dealHints();
+  } else {
+    const last = song;
+    for (let i = 0; i < 5 && (song === last || !song); i++) song = pickSong(Math.random);
+    guesses = [];
+    done = null;
+    picked = [];
+    hintOpts = dealHints();
+  }
+  autoShown = 0;
+  yt?.destroy?.();
+  yt = null;
+  ytReady = false;
+  pos = 0;
+  $('#hint').close();
+  $('#cover').src = song.img.replace('100x100', '400x400');
+  render();
+  renderCards();
+  load();
+}
+
+const hintOk = k => HINTS[k] && (!HINTS[k].ok || HINTS[k].ok(song));
+// ponytail: sort-by-random is a biased shuffle; fine for dealing 3 hint options.
+function dealHints() {
+  const deal = t => Object.keys(HINTS).filter(k => HINTS[k].tier === t && hintOk(k))
+    .sort(() => Math.random() - 0.5).slice(0, 3);
+  return {1: deal(1), 2: deal(2)};
+}
+const nextTier = () => [1, 2].find(t => !picked.some(k => HINTS[k].tier === t));
+const saveDaily = () => { if (mode === 'daily') store.set('daily:' + cat, {day: DAY, id: song.id, guesses, done, picked, opts: hintOpts}) };
+
+async function load() {
+  buffer = null; loadErr = false; renderStatus();
+  const s = song;
+  try {
+    const r = await fetch(s.p);
+    if (!r.ok) throw new Error(r.status);
+    const bytes = await r.arrayBuffer();
+    ctx ??= new (window.AudioContext || window.webkitAudioContext)();
+    const b = await ctx.decodeAudioData(bytes);
+    if (s !== song) return;
+    buffer = b;
+    startAt = Math.max(0, Math.min(findStart(b), b.duration - CLIPS.at(-1) - 0.5));
+  } catch {
+    if (s !== song) return;
+    loadErr = true;
+  }
+  renderStatus();
+}
+
+// ponytail: iTunes previews fade in, so a 0.1s clip from t=0 is near silent. Start at the first
+// 50ms window that reaches 60% of the track's average loudness. Tune 0.6 if clips start too quiet/late.
+function findStart(b) {
+  const d = b.getChannelData(0), w = Math.floor(b.sampleRate * 0.05);
+  const rms = i => { let s = 0; for (let j = i; j < i + w; j += 8) s += d[j] * d[j]; return Math.sqrt(s / (w / 8)) };
+  let total = 0, n = 0;
+  for (let i = 0; i + w < d.length; i += w * 4) { total += rms(i); n++ }
+  for (let i = 0; i + w < d.length / 2; i += w) if (rms(i) > total / n * 0.6) return i / b.sampleRate;
+  return 0;
+}
+
+// During a round this plays the unlocked clip. Afterwards it plays the whole preview and pauses/resumes at `pos`.
+function play() {
+  if (useYT()) return ytToggle();
+  if (!buffer) return;
+  if (src) return stop();
+  ctx.resume();
+  if (done && pos > buffer.duration - 0.2) pos = 0;
+  const off = done ? pos : startAt, dur = done ? buffer.duration - pos : CLIPS[guesses.length], t = ctx.currentTime + 0.03;
+  const gain = ctx.createGain(); // 10ms ramps so short clips don't click
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(1, t + 0.01);
+  gain.gain.setValueAtTime(1, t + dur - 0.02);
+  gain.gain.linearRampToValueAtTime(0, t + dur);
+  const me = src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(gain).connect(ctx.destination);
+  src.start(t, off, dur);
+  src.onended = () => { if (src === me) { pos = 0; stop() } };
+  document.body.classList.add('playing');
+  const tick = () => {
+    const e = Math.max(0, Math.min(ctx.currentTime - t, dur));
+    if (done) pos = off + e;
+    setFill(done ? pos : e);
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stop() {
+  if (src) { const s = src; src = null; try { s.stop() } catch {} }
+  cancelAnimationFrame(raf);
+  document.body.classList.remove('playing');
+  setFill(done ? pos : 0);
+}
+
+// The bar spans the longest clip, or the whole preview once the round is over (when it also drives the mini player).
+const clock = t => `${t / 60 | 0}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+function setFill(e, total = done && buffer ? buffer.duration : CLIPS.at(-1)) {
+  // after the round the bar keeps showing clip lengths (with the arrow); the results player shows playback instead
+  $('#fill').style.width = (done ? 0 : e / total * 100) + '%';
+  const seek = $('#seek');
+  if (!seek) return;
+  seek.max = total;
+  if (!seek.matches(':active')) seek.value = e;
+  $('#time').textContent = `${clock(e)} / ${clock(total)}`;
+}
+
+// After a round, songs with a YouTube match play in full through a hidden YouTube player driven by our own
+// controls; everything else (and any video that fails to load) plays the Apple preview.
+const useYT = () => !!done && !!song.yt && ytFailed !== song.id;
+const ytShow = () => setFill(ytReady ? yt.getCurrentTime() : 0, (ytReady && yt.getDuration()) || song.d || 1);
+
+function ytStart() {
+  const s = song;
+  yt = {}; // placeholder so a second tap doesn't build a second player
+  ytApi ??= new Promise((ready, fail) => {
+    window.onYouTubeIframeAPIReady = ready;
+    document.head.append(Object.assign(document.createElement('script'), {src: 'https://www.youtube.com/iframe_api', onerror: fail}));
+  });
+  ytApi.then(() => {
+    if (s !== song || !done) return;
+    const box = document.createElement('div');
+    $('#ythost').replaceChildren(box);
+    yt = new YT.Player(box, {
+      videoId: s.yt, width: 200, height: 113, playerVars: {autoplay: 1, playsinline: 1},
+      events: {
+        onReady: e => { ytReady = true; e.target.playVideo() },
+        onError: ytFail,
+        onStateChange: e => {
+          const on = e.data === 1;
+          document.body.classList.toggle('playing', on);
+          cancelAnimationFrame(raf);
+          const tick = () => { ytShow(); raf = requestAnimationFrame(tick) };
+          on ? tick() : ytShow();
+        },
+      },
+    });
+  }, ytFail);
+}
+
+function ytToggle() {
+  if (!yt) return ytStart();
+  if (ytReady) yt.getPlayerState() === 1 ? yt.pauseVideo() : yt.playVideo();
+}
+
+function ytFail() {
+  ytFailed = song.id;
+  ytApi = undefined;
+  yt?.destroy?.();
+  yt = null;
+  ytReady = false;
+  document.body.classList.remove('playing');
+  if ($('#results').open) showResults();
+  play();
+}
+
+function guess(id) { // id null = skip
+  if (done) return;
+  guesses.push(id);
+  if (id === song.id) done = 'win';
+  else if (guesses.length === CLIPS.length) done = 'lose';
+  saveDaily();
+  if (done) recordStats();
+  $('#q').value = '';
+  closeList();
+  pos = 0;
+  stop();
+  render();
+  if (done === 'win') confetti();
+  else if (id != null) $('#rows').children[guesses.length - 1].classList.add('shake');
+  if (done) { const s = song; setTimeout(() => { if (s === song) showResults() }, 1200) }
+  const t = nextTier();
+  if (!done && t > autoShown && guesses.length >= TIER_AT[t]) { autoShown = t; showHints() }
+  play();
+}
+
+function recordStats() {
+  const s = getStats(), daily = mode === 'daily';
+  s.played++;
+  if (done === 'win') {
+    s.wins++;
+    s.dist[guesses.length - 1]++;
+    if (daily && s.lastWin !== DAY) s.streak = s.lastWin === DAY - 1 ? s.streak + 1 : 1;
+    s.best = Math.max(s.best, s.streak);
+    if (daily) s.lastWin = DAY;
+  } else if (daily && s.lastWin !== DAY) s.streak = 0;
+  store.set('stats', s);
+}
+const getStats = () => ({played: 0, wins: 0, streak: 0, best: 0, lastWin: 0, dist: [0, 0, 0, 0, 0, 0], ...Object(store.get('stats'))});
+
+const btn = (act, label, primary) => `<button class="btn ${primary ? 'primary' : ''}" data-act="${act}">${label}</button>`;
+const nextButton = () => mode === 'free' ? btn('next', 'Next song', 1) : btn('free', 'Free play', 1);
+
+function render() {
+  const n = guesses.length, misses = done === 'win' ? n - 1 : n, b = document.body;
+  b.classList.toggle('done', !!done);
+  $('#freeBtn').setAttribute('aria-pressed', mode === 'free');
+  const t = nextTier(), left = t ? TIER_AT[t] - n : 0, hb = $('#hintBtn');
+  hb.hidden = !!done;
+  hb.innerHTML = BULB + (!t ? 'Your hints' : left > 0 ? `Hint in ${left}` : 'Pick a hint');
+  hb.classList.toggle('lit', !!t && left <= 0);
+  document.querySelectorAll('.cats button').forEach(el => el.setAttribute('aria-pressed', el.dataset.cat === cat));
+
+  $('#rows').innerHTML = CLIPS.map((_, i) => {
+    if (i >= n) return `<li class="${i === n && !done ? 'cur' : ''}"></li>`;
+    const s = byId.get(guesses[i]);
+    if (!s) return '<li class="skip">Skipped</li>';
+    const cls = s.id === song.id ? 'ok' : s.aid === song.aid ? 'near' : 'bad';
+    return `<li class="${cls}"><span class="name"><bdi>${esc(s.t)}</bdi> <span class="by">${esc(s.a)}</span></span>${cls === 'near' ? '<span class="tag">Same artist</span>' : ''}</li>`;
+  }).join('');
+
+  $('#bar').style.gridTemplateColumns = CLIPS.map((c, i) => c - (CLIPS[i - 1] || 0) + 'fr').join(' ');
+  $('#bar').innerHTML = '<div class="fill" id="fill"></div>' +
+    CLIPS.map((_, i) => `<div class="seg ${done || i <= n ? 'on' : ''}"></div>`).join('');
+
+  $('#controls').hidden = !!done;
+  $('#after').hidden = !done;
+  if (done) $('#after').innerHTML = btn('share', 'Share') + btn('results', 'Results') + nextButton();
+  renderStatus();
+}
+
+// The clip-length label and its arrow sit over the point on the bar that the current clip reaches.
+// After the round they stay where it ended: the clip you solved it on, or the last one.
+function renderStatus() {
+  const n = guesses.length, clip = CLIPS[done === 'win' ? n - 1 : Math.min(n, CLIPS.length - 1)];
+  const ready = !loadErr && (done || buffer), at = ready ? clip / CLIPS.at(-1) * 100 : 0, st = $('#status');
+  $('#disc').disabled = !buffer;
+  st.innerHTML = loadErr ? 'This song won\'t load. <button data-act="retry">Try again</button>'
+    : !ready ? 'Loading the song…'
+    : `<b>${clip} ${clip === 1 ? 'second' : 'seconds'}</b>`;
+  st.style.left = at + '%';
+  st.style.translate = -at + '% 0'; // slides the label so it never overhangs either end of the bar
+  $('#mark').hidden = !ready;
+  $('#mark').style.left = at + '%';
+  $('#answer').innerHTML = done === 'lose' ? `<b><bdi>${esc(song.t)}</bdi></b> ${esc(song.a)}` : '';
+}
+
+const card = (k, cls = '') => {
+  const h = HINTS[k];
+  return h.img
+    ? `<button class="hc pic ${cls}" data-act="hints" aria-label="${h.name}"><span class="ph"><img src="${esc(song.img.replace('100x100', '200x200'))}" style="filter:blur(${h.img}px)" alt=""></span></button>`
+    : `<button class="hc ${cls}" data-act="hints"><small>${h.name}</small><span>${esc(h.text(song))}</span></button>`;
+};
+
+// Picked hints sit beside the record: first on the left, second on the right. Only a fresh pick animates.
+function renderCards(fresh) {
+  $('#cards').innerHTML = picked.map((k, i) => card(k, (i ? 'r' : 'l') + (fresh && i === picked.length - 1 ? '' : ' still'))).join('');
+}
+
+function showHints() {
+  const t = nextTier(), left = t ? TIER_AT[t] - guesses.length : 0;
+  $('#hintBody').innerHTML = `<h2>${BULB}${t && left <= 0 ? 'Pick a hint' : 'Hints'}</h2>`
+    + (picked.length ? `<div class="shown">${picked.map(k => card(k)).join('')}</div>` : '')
+    + (!t ? '' : left > 0 ? `<p class="note">${picked.length ? 'Your next hint' : 'Your first hint'} unlocks after ${left} more ${left === 1 ? 'miss' : 'misses'}.</p>`
+      : `<div class="opts">${hintOpts[t].map(k => `<button class="opt" data-hint="${k}"><b>${HINTS[k].name}</b><small>${HINTS[k].tease}</small></button>`).join('')}</div>`);
+  if (!$('#hint').open) $('#hint').showModal();
+}
+
+function pickHint(k) {
+  picked.push(k);
+  saveDaily();
+  render();
+  renderCards(true);
+  $('#hint').close();
+}
+
+function showResults() {
+  const s = getStats(), lost = s.played - s.wins, bars = [...s.dist, lost], max = Math.max(1, ...bars);
+  // a loss counts as one more than the last try, like Songless
+  const avg = s.played ? (bars.reduce((sum, v, i) => sum + v * (i + 1), 0) / s.played).toFixed(1) : '–';
+  const mine = !done ? -1 : done === 'win' ? guesses.length - 1 : CLIPS.length;
+  const tile = (v, label) => `<div><b>${v}</b><span>${label}</span></div>`;
+  const today = tile(done === 'win' ? guesses.length : 'X', 'Solved in') + tile(picked.length, picked.length === 1 ? 'Hint used' : 'Hints used') + tile(avg, 'Your average');
+  const all = tile(s.played, 'Played') + tile(avg, 'Average') + tile(s.streak, 'Daily streak') + tile(s.best, 'Best streak');
+  const dist = `<div class="dist">${bars.map((v, i) => `<div class="${i === mine ? 'me' : ''} ${i === CLIPS.length ? 'lost' : ''}"><span>${i === CLIPS.length ? 'X' : i + 1}</span><i style="width:${v / max * 80}%">${v}</i></div>`).join('')}</div>`;
+  $('#results').className = done || '';
+  $('#resultsBody').innerHTML = done ? `
+    <p class="band">${done === 'win' ? WIN[guesses.length - 1] : 'Game over'}</p>
+    <div class="pad">
+      <div class="was"><small>The song was</small><h3><bdi>${esc(song.t)}</bdi></h3><p>${artist(song)}</p></div>
+      <div class="tabs"><button data-tab="today" aria-pressed="true">${mode === 'daily' ? 'Today' : 'This song'}</button><button data-tab="all" aria-pressed="false">All time</button></div>
+      <div class="nums" data-panel="today">${today}</div>
+      <div class="nums" data-panel="all" hidden>${all}</div>
+      ${dist}
+      <div class="player">
+        <button class="pp" data-act="toggle" aria-label="Play or pause the preview">
+          <svg class="go" viewBox="0 0 20 20" fill="currentColor"><path d="M6 3v14l11-7z"/></svg>
+          <svg class="stop" viewBox="0 0 20 20" fill="currentColor"><rect x="4" y="3" width="4.5" height="14" rx="1"/><rect x="11.5" y="3" width="4.5" height="14" rx="1"/></svg>
+        </button>
+        <input id="seek" type="range" min="0" max="30" step="0.1" value="0" aria-label="Preview position">
+        <span id="time"></span>
+        ${useYT()
+          ? `<a href="https://music.youtube.com/watch?v=${esc(song.yt)}" target="_blank" rel="noopener" aria-label="Open on YouTube" title="Full song from YouTube">${YT_LOGO}</a>`
+          : `<a href="${esc(song.u)}" target="_blank" rel="noopener" aria-label="Open in Apple Music" title="30 second preview from Apple Music">${APPLE_LOGO}</a>`}
+      </div>
+      <div class="controls">${btn('share', 'Share')}${nextButton()}</div>
+      ${mode === 'daily' ? '<p class="note">New daily songs at midnight</p>' : ''}
+    </div>` : `<div class="pad"><h2>Your stats</h2><div class="nums">${all}</div>${dist}</div>`;
+  useYT() ? ytShow() : setFill(done ? pos : 0);
+  if (!$('#results').open) $('#results').showModal();
+}
+
+function showList() {
+  const q = norm($('#q').value);
+  if (!q) return closeList();
+  const toks = q.split(' ');
+  matches = songs.filter(s => !guesses.includes(s.id) && toks.every(t => s.k.includes(t))).slice(0, 8);
+  active = 0;
+  $('#list').innerHTML = matches.length ? matches.map((s, i) => `
+    <li role="option" data-i="${i}" class="${i ? '' : 'act'}">
+      <img src="${esc(s.img.replace('100x100', '80x80'))}" alt="" loading="lazy">
+      <span><b><bdi>${esc(s.t)}</bdi></b><small>${artist(s)}</small></span>
+    </li>`).join('') : '<li class="none">No song matches that. Try the artist\'s name.</li>';
+  $('#list').hidden = false;
+}
+function closeList() { $('#list').hidden = true; matches = [] }
+
+function share() {
+  const marks = CLIPS.map((_, i) => {
+    if (i >= guesses.length) return '⬜';
+    const s = byId.get(guesses[i]);
+    return !s ? '⬛' : s.id === song.id ? '🟩' : s.aid === song.aid ? '🟨' : '🟥';
+  }).join('');
+  const title = mode === 'daily' ? `Samma3ni #${GAME_NO}${cat === 'all' ? '' : ` (${CATS[cat]})`}` : 'Samma3ni (free play)';
+  const text = `${title}\n🎧 ${marks}${picked.length ? ' ' + '💡'.repeat(picked.length) : ''}\n${location.origin + location.pathname}`;
+  if (navigator.share) navigator.share({text}).catch(() => {});
+  else navigator.clipboard.writeText(text).then(() => toast('Result copied'), () => toast('Couldn\'t copy the result'));
+}
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = $('#confetti'), colors = ['#FFB321', '#FF4D7E', '#3DDBA5', '#FFF1D6'];
+  box.innerHTML = '';
+  for (let i = 0; i < 44; i++) {
+    const p = document.createElement('i');
+    p.style.cssText = `--x:${Math.random() * 100}%;--r:${Math.random() * 720 - 360}deg;--d:${1.2 + Math.random() * 1.4}s;background:${colors[i % 4]}`;
+    box.append(p);
+  }
+  setTimeout(() => box.innerHTML = '', 3000);
+}
+
+function setMode(m) {
+  mode = m;
+  song = null;
+  startRound();
+}
+
+$('#disc').onclick = play;
+$('#skip').onclick = () => guess(null);
+$('#q').oninput = showList;
+$('#q').onfocus = showList;
+$('#q').onkeydown = e => {
+  if (e.key === 'Escape') return closeList();
+  if (!matches.length) return;
+  if (e.key === 'Enter') return guess(matches[active].id);
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  active = (active + (e.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length;
+  [...$('#list').children].forEach((li, i) => li.classList.toggle('act', i === active));
+  $('#list').children[active].scrollIntoView({block: 'nearest'});
+};
+$('#list').onclick = e => { const li = e.target.closest('[data-i]'); if (li) guess(matches[li.dataset.i].id) };
+$('#cats').onclick = e => {
+  const c = e.target.dataset.cat;
+  if (!c || c === cat) return;
+  cat = c;
+  store.set('cat', c);
+  song = null;
+  startRound();
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search')) closeList();
+  if (e.target.matches('dialog')) e.target.close(); // click on the backdrop
+  const tab = e.target.dataset.tab;
+  if (tab) {
+    document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tab === tab));
+    document.querySelectorAll('[data-panel]').forEach(el => el.hidden = el.dataset.panel !== tab);
+    return;
+  }
+  const hint = e.target.closest('[data-hint]');
+  if (hint) return pickHint(hint.dataset.hint);
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (!act) return;
+  if (act === 'toggle') return play();
+  if (act !== 'share') $('#results').close();
+  if (act === 'hints') showHints();
+  if (act === 'next') startRound();
+  if (act === 'share') share();
+  if (act === 'free') setMode('free');
+  if (act === 'retry') load();
+  if (act === 'results') showResults();
+});
+$('#freeBtn').onclick = () => setMode(mode === 'free' ? 'daily' : 'free');
+$('#statsBtn').onclick = showResults;
+$('#results').addEventListener('close', () => $('#resultsBody').innerHTML = '');
+document.addEventListener('input', e => {
+  if (e.target.id !== 'seek') return;
+  if (useYT()) return void (ytReady && yt.seekTo(+e.target.value, true));
+  pos = +e.target.value;
+  if (src) { stop(); play() } else setFill(pos);
+});
+$('#hintBtn').onclick = showHints;
+$('#helpBtn').onclick = () => $('#help').showModal();
+
+fetch('songs.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
+  songs = data;
+  for (const s of songs) { s.k = norm(`${s.t} ${s.a} ${s.ar}`); byId.set(s.id, s) }
+  $('#cats').innerHTML = Object.entries(CATS).map(([k, v]) => `<button data-cat="${k}">${v}</button>`).join('');
+  startRound();
+  if (!store.get('seen')) { store.set('seen', 1); $('#help').showModal() }
+}).catch(e => {
+  console.error(e);
+  $('#status').textContent = `The song list didn't load (${e.message}). Refresh the page.`;
+});
+</script>
+</body>
+</html>
