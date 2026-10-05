@@ -8,6 +8,7 @@
 <meta property="og:title" content="Samma3ni | Daily Egyptian song guesser">
 <meta property="og:description" content="Guess the Egyptian song from a split-second clip. A new song every day.">
 <meta name="theme-color" content="#2A0F3A">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='31' fill='%23160a1d'/><circle cx='32' cy='32' r='23' fill='none' stroke='%23382244' stroke-width='2'/><circle cx='32' cy='32' r='14' fill='%23FFB321' stroke='%23FF4D7E' stroke-width='3'/><circle cx='32' cy='32' r='4' fill='%23FFF1D6'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
@@ -295,6 +296,32 @@ const norm = s => s.toLowerCase().normalize('NFKD').replace(/\p{M}|ـ/gu, '')
   .replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
   .replace(/(?<=[a-z])[23578]|[23578](?=[a-z])/g, d => FRANCO[d])
   .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+// Sounds-like matching, so a title written in Arabic can be found from a Latin keyboard (and the reverse), and so
+// "tamaly m3ak" finds "Tamally Maak". Each word is reduced to its consonant sounds: البخت, "El Bakht" and "elba5t" all
+// become "lbxt". ponytail: letter-by-letter and Egyptian-leaning (ج = g); loose on purpose, it only feeds a pick-list.
+const AR_SOUNDS = {ب: 'b', ت: 't', ث: 's', ج: 'g', ح: 'h', خ: 'x', د: 'd', ذ: 'z', ر: 'r', ز: 'z', س: 's', ش: 'c', ص: 's', ض: 'd',
+  ط: 't', ظ: 'z', غ: 'g', ف: 'f', ق: 'k', ك: 'k', ل: 'l', م: 'm', ن: 'n', ه: 'h'};
+function skel(text) {
+  let out = '';
+  for (const part of text.toLowerCase().replace(/\(.*?\)|\[.*?\]/g, '').split(/([\u0600-\u06ff]+)/)) {
+    out += /[\u0600-\u06ff]/.test(part) ? [...part].map(ch => AR_SOUNDS[ch] || '').join('')
+      : part.replace(/sh|ch/g, '\0').replace(/kh|5/g, 'x').replace(/gh|8/g, 'g').replace(/th|9/g, 's').replace(/dh/g, 'd')
+        .replace(/ph|v/g, 'f').replace(/7/g, 'h').replace(/j/g, 'g').replace(/[qc]/g, 'k').replace(/p/g, 'b')
+        .replace(/[^b-df-hj-np-tvxz\0]/g, '').replace(/\0/g, 'c'); // what is left: consonants only
+  }
+  return out.replace(/(.)\1+/g, '$1');
+}
+// Letters people write more than one way: ق is often silent in Egyptian (قلبي = "albi"), and a final ة/ه is
+// silent, "h" or "t" (ليلة = "leila", "leilah", "leilet").
+function spellings(x) {
+  let out = [x];
+  if (/ق/.test(x)) out = out.concat(out.map(y => y.replace(/ق/g, '')));
+  if (/[ةه](?=\s|$)/.test(x)) out = out.concat(out.flatMap(y => [y.replace(/[ةه](?=\s|$)/g, ''), y.replace(/[ةه](?=\s|$)/g, 'ت')]));
+  return out;
+}
+// Everything a song can be called, by sound.
+const soundKeys = s => [...new Set([s.t, s.t2 || '', s.a, s.ar].flatMap(spellings).map(skel).filter(Boolean))];
 
 let songs = [], byId = new Map(), song, guesses = [], done = null;
 let mode = 'daily', cat = store.get('cat');
@@ -644,13 +671,23 @@ function showResults() {
 function showList() {
   const q = norm($('#q').value);
   if (!q) return closeList();
-  const toks = q.split(' ');
-  matches = songs.filter(s => !guesses.includes(s.id) && toks.every(t => s.k.includes(t))).slice(0, 8);
+  const toks = q.split(' '), open = songs.filter(s => !guesses.includes(s.id));
+  matches = open.filter(s => toks.every(t => s.k.includes(t)));
+  // then anything that sounds like what was typed; needs at least three consonants to go on
+  const sounds = $('#q').value.split(/\s+/).map(skel).filter(Boolean), whole = sounds.join('');
+  if (matches.length < 60 && whole && q.length >= 4) { // short sounds (ايام = "m") still work: closest names rank first
+    const exact = new Set(matches);
+    // closest first: a name that is exactly this sound, then one that starts with it, then one that contains it
+    const rank = s => s.sk.includes(whole) ? 0 : s.sk.some(f => f.startsWith(whole)) ? 1 : 2;
+    matches = matches.concat(open.filter(s => !exact.has(s) && sounds.every(t => s.sk.some(f => f.includes(t))))
+      .map(s => [rank(s), s]).sort((a, b) => a[0] - b[0]).map(x => x[1]));
+  }
+  matches = matches.slice(0, 60);
   active = 0;
   $('#list').innerHTML = matches.length ? matches.map((s, i) => `
     <li role="option" data-i="${i}" class="${i ? '' : 'act'}">
       <img src="${esc(s.img.replace('100x100', '80x80'))}" alt="" loading="lazy">
-      <span><b><bdi>${esc(s.t)}</bdi></b><small>${artist(s)}</small></span>
+      <span><b><bdi>${esc(s.t)}</bdi></b><small>${s.t2 ? `<bdi>${esc(s.t2)}</bdi>, ` : ''}${artist(s)}</small></span>
     </li>`).join('') : '<li class="none">No song matches that. Try the artist\'s name.</li>';
   $('#list').hidden = false;
 }
@@ -752,7 +789,7 @@ $('#helpBtn').onclick = () => $('#help').showModal();
 
 fetch('songs.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
   songs = data;
-  for (const s of songs) { s.k = norm(`${s.t} ${s.a} ${s.ar}`); byId.set(s.id, s) }
+  for (const s of songs) { s.k = norm(`${s.t} ${s.t2 || ''} ${s.a} ${s.ar}`); s.sk = soundKeys(s); byId.set(s.id, s) }
   $('#cats').innerHTML = Object.entries(CATS).map(([k, v]) => `<button data-cat="${k}">${v}</button>`).join('');
   startRound();
   if (!store.get('seen')) { store.set('seen', 1); $('#help').showModal() }

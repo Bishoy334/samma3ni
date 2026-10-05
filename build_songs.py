@@ -408,6 +408,43 @@ def find_track(title, artist, ids_of):
     return ok[0] if ok else None
 
 
+AR_SOUNDS = {"ب": "b", "ت": "t", "ث": "s", "ج": "g", "ح": "h", "خ": "x", "د": "d", "ذ": "z", "ر": "r", "ز": "z", "س": "s", "ش": "c",
+             "ص": "s", "ض": "d", "ط": "t", "ظ": "z", "غ": "g", "ف": "f", "ق": "k", "ك": "k", "ل": "l", "م": "m", "ن": "n", "ه": "h"}
+FRANCO = [("sh", "c"), ("ch", "c"), ("kh", "x"), ("gh", "g"), ("th", "s"), ("dh", "d"), ("ph", "f"), ("7", "h"), ("5", "x"), ("8", "g"),
+          ("9", "s"), ("j", "g"), ("q", "k"), ("c", "k"), ("p", "b"), ("v", "f")]
+
+
+def skeleton(text):
+    """The consonant sounds of a title, so Arabic script and Franco/Latin spellings of it can be compared.
+    ponytail: letter-by-letter and Egyptian-leaning (ج = g); good for telling songs apart, not a real transliterator."""
+    text = re.sub(r"\(.*?\)|\[.*?\]", "", text.lower())
+    if text.isascii():
+        text = text.replace("sh", "\0").replace("ch", "\0")  # protect before c -> k
+        for a, b_ in FRANCO[2:]:
+            text = text.replace(a, b_)
+        out = re.sub(r"[^b-df-hj-np-tvxz\0]", "", text).replace("\0", "c")  # drop vowels, y, w, digits, spaces
+    else:
+        out = "".join(AR_SOUNDS.get(ch, "") for ch in text)
+    return re.sub(r"(.)\1+", r"\1", out)
+
+
+def titles_agree(yt_title, apple_title):
+    """Whether YouTube's title names the same song: True, False, or None when there isn't enough to go on.
+    Same alphabet: compare the text. Different alphabets: compare how they sound."""
+    if not yt_title:
+        return None
+    latin = apple_title.isascii()
+    part = norm(re.sub(r"[^\x00-\x7f]" if latin else r"[\x00-\x7f]", " ", yt_title))  # the part of YouTube's title in Apple's alphabet
+    ours = norm(apple_title)
+    if len(part) >= 3 and len(ours) >= 3:
+        return part in ours or ours in part or SequenceMatcher(None, part, ours).ratio() >= 0.5
+    a, b_ = skeleton(yt_title), skeleton(apple_title)
+    if not a or not b_:
+        return None
+    # when unsure, say no: a rejected match only costs that song its full-length player
+    return a in b_ or b_ in a or SequenceMatcher(None, a, b_).ratio() >= 0.6
+
+
 def id_list(name):
     p = pathlib.Path(name)
     return {int(m.group()) for line in (p.read_text().splitlines() if p.exists() else []) if (m := re.match(r"\d+", line.strip()))}
@@ -425,7 +462,7 @@ def publish(songs):
         seen = set()
         ranked = [s for s in ranked if not (s.get("yt") in seen or seen.add(s.get("yt") or s["id"]))]
         out += [
-            {k: v for k, v in s.items() if k not in ("must", "n")}
+            {k: v for k, v in s.items() if k not in ("must", "n")}  # internal fields stay in the master
             for i, s in enumerate(ranked)
             if (i < PER_ARTIST or s.get("must") or s["id"] in include) and s["id"] not in exclude
         ]
@@ -484,8 +521,26 @@ def main():
     yt = json.loads(YT_MATCHES.read_text()) if YT_MATCHES.exists() else {}
     for s in songs:
         m = yt.get(str(s["id"]))
-        if m:
+        if m and titles_agree(m.get("t"), s["t"]) is not False:
             s["yt"], s["n"] = m["v"], m.get("n", 0)
+            if m.get("t") and m["t"].isascii() != s["t"].isascii() and titles_agree(m["t"], s["t"]):
+                s["t2"] = m["t"]  # YouTube's title in the other alphabet, confirmed to sound the same: searchable either way
+
+    # One YouTube video claimed by two clearly different songs means at least one match is wrong (the matcher goes by
+    # artist and length). We can't tell which, so neither keeps it; they fall back to the Apple preview.
+    claims = {}
+    for s in songs:
+        if "yt" in s:
+            claims.setdefault(s["yt"], []).append(s)
+    conflicts = 0
+    for group in claims.values():
+        titles = [norm(s["t"]) for s in group]
+        if any(a.isascii() == b.isascii() and SequenceMatcher(None, a, b).ratio() < 0.5
+               for i, a in enumerate(titles) for b in titles[i + 1:]):
+            conflicts += len(group)
+            for s in group:
+                del s["yt"], s["n"]
+    print(f"{conflicts} songs lost their YouTube match because another song claimed the same video", file=sys.stderr)
 
     save_cache()
     assert songs and len(ids) == len(songs)
